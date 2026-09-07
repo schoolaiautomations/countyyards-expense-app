@@ -1,0 +1,71 @@
+import React from 'react';
+import { Home, FolderKanban, Wallet, Images } from 'lucide-react';
+
+export type AppModule = 'home' | 'projects' | 'finance' | 'gallery';
+
+interface BottomNavProps {
+  activeModule: AppModule;
+  onSelectModule: (module: AppModule) => void;
+}
+
+export const BottomNav: React.FC<BottomNavProps> = ({ activeModule, onSelectModule }) => {
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-lg px-2 py-1.5 flex items-center justify-around max-w-lg mx-auto sm:max-w-xl">
+      <button
+        onClick={() => onSelectModule('home')}
+        className={`flex-1 py-1 flex flex-col items-center justify-center rounded-xl transition-all ${
+          activeModule === 'home'
+            ? 'text-yard-green font-bold scale-100'
+            : 'text-stone-400 hover:text-stone-700 font-medium'
+        }`}
+      >
+        <div className={`p-1 rounded-lg ${activeModule === 'home' ? 'bg-yard-mint text-yard-green' : ''}`}>
+          <Home className="w-4 h-4" />
+        </div>
+        <span className="text-[10px] mt-0.5">Home</span>
+      </button>
+
+      <button
+        onClick={() => onSelectModule('projects')}
+        className={`flex-1 py-1 flex flex-col items-center justify-center rounded-xl transition-all ${
+          activeModule === 'projects'
+            ? 'text-yard-green font-bold scale-100'
+            : 'text-stone-400 hover:text-stone-700 font-medium'
+        }`}
+      >
+        <div className={`p-1 rounded-lg ${activeModule === 'projects' ? 'bg-yard-mint text-yard-green' : ''}`}>
+          <FolderKanban className="w-4 h-4" />
+        </div>
+        <span className="text-[10px] mt-0.5">Projects</span>
+      </button>
+
+      <button
+        onClick={() => onSelectModule('finance')}
+        className={`flex-1 py-1 flex flex-col items-center justify-center rounded-xl transition-all ${
+          activeModule === 'finance'
+            ? 'text-yard-green font-bold scale-100'
+            : 'text-stone-400 hover:text-stone-700 font-medium'
+        }`}
+      >
+        <div className={`p-1 rounded-lg ${activeModule === 'finance' ? 'bg-yard-mint text-yard-green' : ''}`}>
+          <Wallet className="w-4 h-4" />
+        </div>
+        <span className="text-[10px] mt-0.5">Finance</span>
+      </button>
+
+      <button
+        onClick={() => onSelectModule('gallery')}
+        className={`flex-1 py-1 flex flex-col items-center justify-center rounded-xl transition-all ${
+          activeModule === 'gallery'
+            ? 'text-yard-green font-bold scale-100'
+            : 'text-stone-400 hover:text-stone-700 font-medium'
+        }`}
+      >
+        <div className={`p-1 rounded-lg ${activeModule === 'gallery' ? 'bg-yard-mint text-yard-green' : ''}`}>
+          <Images className="w-4 h-4" />
+        </div>
+        <span className="text-[10px] mt-0.5">Gallery</span>
+      </button>
+    </nav>
+  );
+};
