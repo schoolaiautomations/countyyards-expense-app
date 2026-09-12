@@ -8,7 +8,8 @@ import { DashboardScreen } from './screens/DashboardScreen';
 import { ProjectsTrackerScreen } from './screens/ProjectsTrackerScreen';
 import { ProjectDetailScreen } from './screens/ProjectDetailScreen';
 import { FinanceTrackerScreen } from './screens/FinanceTrackerScreen';
-import { ProjectGalleryHubScreen } from './screens/ProjectGalleryHubScreen';
+import { SiteAssessmentScreen } from './screens/SiteAssessmentScreen';
+import { MaintenanceScreen } from './screens/MaintenanceScreen';
 
 export const App: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -37,21 +38,21 @@ export const App: React.FC = () => {
         {/* If viewing a single project detail */}
         {selectedProject ? (
           <ProjectDetailScreen />
-        ) : activeModule === 'home' ? (
-          /* Main Dashboard: Strictly shows the 3 Cards without details */
-          <DashboardScreen onSelectModule={(mod) => setActiveModule(mod)} />
+        ) : activeModule === 'assessment' ? (
+          /* Card 3: Client Site Assessment */
+          <SiteAssessmentScreen onBack={() => setActiveModule('home')} />
+        ) : activeModule === 'maintenance' ? (
+          /* Card 4: Inspection / Maintenance */
+          <MaintenanceScreen onBack={() => setActiveModule('home')} />
         ) : activeModule === 'projects' ? (
-          /* Card 1: Projects Tracker */
+          /* Tab: Projects Tracker */
           <ProjectsTrackerScreen onBack={() => setActiveModule('home')} />
         ) : activeModule === 'finance' ? (
-          /* Card 2: Finance Tracker */
+          /* Tab: Finance Tracker */
           <FinanceTrackerScreen onBack={() => setActiveModule('home')} />
         ) : (
-          /* Card 3: Project Gallery & Media Hub */
-          <ProjectGalleryHubScreen
-            onBack={() => setActiveModule('home')}
-            onGoToProjects={() => setActiveModule('projects')}
-          />
+          /* Main Dashboard: Shows Cards without details */
+          <DashboardScreen onSelectModule={(mod) => setActiveModule(mod)} />
         )}
       </main>
 

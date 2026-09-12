@@ -107,6 +107,7 @@ export interface ProjectFinancialSummary {
   profit_remained: number; // total_client_payments - total_deductions
   pending_receivables: number; // quoted_amount - total_client_payments
   projected_profit: number; // quoted_amount - total_deductions
+  net_profit_margin: number; // margin percentage on collected amount
 }
 
 export interface CompanyFinancialSummary {
@@ -121,3 +122,61 @@ export interface CompanyFinancialSummary {
   active_projects_count: number;
   completed_projects_count: number;
 }
+
+// ---- Site Assessment ----
+export type AssessmentStatus = 'Pending' | 'Approved' | 'Rejected';
+
+export interface SiteAssessment {
+  id: string;
+  client_name: string;
+  client_phone?: string;
+  location?: string;
+  visit_date: string;
+  interest_description?: string;
+  soil_test_done: boolean;
+  soil_test_notes?: string;
+  water_test_done: boolean;
+  water_test_notes?: string;
+  sunlight_check_done: boolean;
+  sunlight_check_notes?: string;
+  total_sqft: number;
+  notes?: string;
+  status: AssessmentStatus;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AssessmentMeasurement {
+  id: string;
+  assessment_id: string;
+  zone_name: string;
+  length_ft: number;
+  width_ft: number;
+  area_sqft: number;
+  notes?: string;
+  created_at?: string;
+}
+
+// ---- Inspection & Maintenance ----
+export type MaintenanceType = 'Maintenance' | 'Inspection' | 'Follow-up';
+export type MaintenanceStatus = 'Scheduled' | 'In Progress' | 'Completed' | 'Overdue' | 'Cancelled';
+export type MaintenanceRecurrence = 'Once' | 'Weekly' | 'Bi-Weekly' | 'Monthly' | 'Quarterly';
+
+export interface MaintenanceSchedule {
+  id: string;
+  project_id?: string;
+  client_name: string;
+  location?: string;
+  title: string;
+  type: MaintenanceType;
+  scheduled_date: string;
+  scheduled_time?: string;
+  assigned_to?: string;
+  status: MaintenanceStatus;
+  recurrence: MaintenanceRecurrence;
+  notes?: string;
+  completion_notes?: string;
+  created_at: string;
+  updated_at?: string;
+}
+

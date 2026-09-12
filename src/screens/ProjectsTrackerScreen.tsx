@@ -16,6 +16,7 @@ import {
   Clock
 } from 'lucide-react';
 import { AddProjectModal } from '../components/AddProjectModal';
+import { LoadingScreen, SyncingBadge } from '../components/LoadingScreen';
 
 interface ProjectsTrackerScreenProps {
   onBack?: () => void;
@@ -24,6 +25,7 @@ interface ProjectsTrackerScreenProps {
 export const ProjectsTrackerScreen: React.FC<ProjectsTrackerScreenProps> = ({ onBack }) => {
   const { 
     projects, 
+    loading,
     setSelectedProject, 
     createProject, 
     getProjectFinancials,
@@ -58,10 +60,11 @@ export const ProjectsTrackerScreen: React.FC<ProjectsTrackerScreenProps> = ({ on
             <span>Back to Home</span>
           </button>
           <span className="text-[11px] font-extrabold uppercase tracking-wider text-stone-400">
-            Card 1 • Projects
+            Card 2 • Projects
           </span>
         </div>
       )}
+
       {/* Header with Add Button */}
       <div className="flex items-center justify-between mb-3 mt-1">
         <div>
@@ -81,6 +84,9 @@ export const ProjectsTrackerScreen: React.FC<ProjectsTrackerScreenProps> = ({ on
           <span>New Project</span>
         </button>
       </div>
+
+      {/* Syncing indicator if refreshing data with existing items */}
+      {loading && projects.length > 0 && <SyncingBadge />}
 
       {/* Search Bar */}
       <div className="relative mb-3">
@@ -113,8 +119,14 @@ export const ProjectsTrackerScreen: React.FC<ProjectsTrackerScreenProps> = ({ on
         ))}
       </div>
 
-      {/* Projects Cards List */}
-      {filteredProjects.length === 0 ? (
+      {/* If currently loading from fresh start without cached data */}
+      {loading && projects.length === 0 ? (
+        <LoadingScreen 
+          message="Loading Projects..." 
+          submessage="Connecting to cloud and retrieving your projects..." 
+        />
+      ) : filteredProjects.length === 0 ? (
+        /* Empty state only when NOT loading */
         <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-stone-300 p-6">
           <FolderKanban className="w-10 h-10 text-stone-300 mx-auto mb-2" />
           <h3 className="text-sm font-bold text-stone-700">No projects found</h3>

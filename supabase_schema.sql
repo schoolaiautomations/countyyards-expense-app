@@ -133,3 +133,82 @@ DROP POLICY IF EXISTS "Public Access project-media" ON storage.objects;
 CREATE POLICY "Public Access project-media" ON storage.objects FOR ALL TO anon 
 USING (bucket_id = 'project-media') 
 WITH CHECK (bucket_id = 'project-media');
+
+-- ==============================================================================
+-- 11. CLIENT SITE ASSESSMENT & MEASUREMENTS
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.site_assessments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_name TEXT NOT NULL,
+  client_phone TEXT DEFAULT '',
+  location TEXT DEFAULT '',
+  visit_date TEXT NOT NULL,
+  interest_description TEXT DEFAULT '',
+  soil_test_done BOOLEAN DEFAULT FALSE,
+  soil_test_notes TEXT DEFAULT '',
+  water_test_done BOOLEAN DEFAULT FALSE,
+  water_test_notes TEXT DEFAULT '',
+  sunlight_check_done BOOLEAN DEFAULT FALSE,
+  sunlight_check_notes TEXT DEFAULT '',
+  total_sqft NUMERIC(12,2) DEFAULT 0,
+  notes TEXT DEFAULT '',
+  status TEXT DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.assessment_measurements (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  assessment_id UUID NOT NULL REFERENCES public.site_assessments(id) ON DELETE CASCADE,
+  zone_name TEXT NOT NULL,
+  length_ft NUMERIC(10,2) DEFAULT 0,
+  width_ft NUMERIC(10,2) DEFAULT 0,
+  area_sqft NUMERIC(12,2) DEFAULT 0,
+  notes TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.site_assessments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assessment_measurements ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow anon all on site_assessments" ON public.site_assessments;
+CREATE POLICY "Allow anon all on site_assessments" ON public.site_assessments FOR ALL TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon all on assessment_measurements" ON public.assessment_measurements;
+CREATE POLICY "Allow anon all on assessment_measurements" ON public.assessment_measurements FOR ALL TO anon USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_site_assessments_date ON public.site_assessments(visit_date);
+CREATE INDEX IF NOT EXISTS idx_assessment_measurements_assessment ON public.assessment_measurements(assessment_id);
+
+-- ==============================================================================
+-- 12. INSPECTION & MAINTENANCE SCHEDULES
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.maintenance_schedules (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+  client_name TEXT NOT NULL,
+  location TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  type TEXT DEFAULT 'Maintenance' CHECK (type IN ('Maintenance', 'Inspection', 'Follow-up')),
+  scheduled_date DATE NOT NULL,
+  scheduled_time TEXT DEFAULT '',
+  assigned_to TEXT DEFAULT '',
+  status TEXT DEFAULT 'Scheduled' CHECK (status IN ('Scheduled', 'In Progress', 'Completed', 'Overdue', 'Cancelled')),
+  recurrence TEXT DEFAULT 'Once' CHECK (recurrence IN ('Once', 'Weekly', 'Bi-Weekly', 'Monthly', 'Quarterly')),
+  notes TEXT DEFAULT '',
+  completion_notes TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.maintenance_schedules ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow anon all on maintenance_schedules" ON public.maintenance_schedules;
+CREATE POLICY "Allow anon all on maintenance_schedules" ON public.maintenance_schedules FOR ALL TO anon USING (true) WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_maintenance_date ON public.maintenance_schedules(scheduled_date ASC);
+CREATE INDEX IF NOT EXISTS idx_maintenance_project ON public.maintenance_schedules(project_id);
+
+

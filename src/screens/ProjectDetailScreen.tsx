@@ -7,13 +7,15 @@ import {
   Trash2, 
   MapPin, 
   Phone, 
-  User
+  User,
+  Edit2
 } from 'lucide-react';
 
 import { FinancialSummaryCard } from '../components/subcards/FinancialSummaryCard';
 import { ExpensesCard } from '../components/subcards/ExpensesCard';
 import { SalariesCard } from '../components/subcards/SalariesCard';
 import { ClientPaymentsCard } from '../components/subcards/ClientPaymentsCard';
+import { EditProjectModal } from '../components/EditProjectModal';
 
 export const ProjectDetailScreen: React.FC = () => {
   const {
@@ -34,6 +36,8 @@ export const ProjectDetailScreen: React.FC = () => {
   } = useProjects();
 
   const [activeSubcardTab, setActiveSubcardTab] = useState<string>('all');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFocusField, setEditFocusField] = useState<'quoted_amount' | 'name'>('name');
 
   if (!selectedProject) {
     return null;
@@ -95,14 +99,26 @@ export const ProjectDetailScreen: React.FC = () => {
       {/* Project Banner Card */}
       <div className="bg-white rounded-xl p-3 shadow-xs border border-stone-200/80 mb-2.5">
         <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-base font-bold text-stone-900 leading-tight">
+          <div className="flex-1 min-w-0 pr-2">
+            <h1 className="text-base font-bold text-stone-900 leading-tight truncate">
               {selectedProject.name}
             </h1>
             <p className="text-[10px] text-stone-400 mt-0.5">
               Created {formatDate(selectedProject.created_at)}
             </p>
           </div>
+
+          <button
+            onClick={() => {
+              setEditFocusField('name');
+              setIsEditModalOpen(true);
+            }}
+            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-yard-green/10 hover:bg-yard-green/20 text-yard-green text-xs font-bold transition-all active:scale-95 flex-shrink-0"
+            title="Edit Project Details"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            <span>Edit</span>
+          </button>
         </div>
 
         {/* Client & Site Quick Info */}
@@ -162,9 +178,15 @@ export const ProjectDetailScreen: React.FC = () => {
         ))}
       </div>
 
-      {/* SUB-CARDS RENDERING (Gallery & Documents removed from Project Tracker) */}
+      {/* SUB-CARDS RENDERING */}
       {(activeSubcardTab === 'all' || activeSubcardTab === 'summary') && (
-        <FinancialSummaryCard financials={financials} />
+        <FinancialSummaryCard 
+          financials={financials} 
+          onEditQuotedAmount={() => {
+            setEditFocusField('quoted_amount');
+            setIsEditModalOpen(true);
+          }}
+        />
       )}
 
       {(activeSubcardTab === 'all' || activeSubcardTab === 'expenses') && (
@@ -198,6 +220,17 @@ export const ProjectDetailScreen: React.FC = () => {
           onDeletePayment={deleteClientPayment}
         />
       )}
+
+      {/* Edit Project Details & Quoted Amount Modal */}
+      <EditProjectModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        project={selectedProject}
+        onUpdateProject={async (id, updates) => {
+          await updateProject(id, updates);
+        }}
+        initialFocusField={editFocusField}
+      />
     </div>
   );
 };

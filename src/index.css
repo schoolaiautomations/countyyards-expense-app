@@ -49,21 +49,19 @@
   scrollbar-width: none;
 }
 
-/* Printable Receipt Styling - Guaranteed Single Page */
+/* Printable Receipt Styling - Covers 80%+ of A4 Sheet */
 @page {
-  size: portrait;
-  margin: 10mm;
+  size: A4 portrait;
+  margin: 12mm 15mm;
 }
 
 @media print {
   html, body {
     width: 100% !important;
-    height: auto !important;
-    max-height: 100% !important;
+    height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
-    overflow: hidden !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -73,14 +71,14 @@
     display: none !important;
   }
 
-  /* Modal backdrop becomes transparent full print container */
+  /* Modal backdrop becomes clean full-page print container */
   .print-receipt-portal {
     position: static !important;
     background: transparent !important;
     padding: 0 !important;
     margin: 0 !important;
     height: auto !important;
-    max-height: 100% !important;
+    min-height: 100% !important;
     overflow: visible !important;
     display: block !important;
   }
@@ -95,19 +93,22 @@
     padding: 0 !important;
   }
 
-  /* Receipt container avoids breaking across pages */
+  /* Receipt container expands to cover 80%+ of A4 height */
   #printable-receipt {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    max-width: 185mm !important;
+    min-height: 235mm !important; /* ~85% of A4 printable height */
+    margin: 0 auto !important;
+    padding: 24px 28px !important;
+    box-sizing: border-box !important;
     box-shadow: none !important;
-    border: none !important;
+    border: 2.5px solid #15803d !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
     page-break-inside: avoid !important;
-    page-break-before: avoid !important;
-    page-break-after: avoid !important;
     break-inside: avoid !important;
-    break-after: avoid !important;
   }
 }
