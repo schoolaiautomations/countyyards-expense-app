@@ -180,3 +180,51 @@ export interface MaintenanceSchedule {
   updated_at?: string;
 }
 
+// ---- Plant / Material Procurement ----
+export interface ProcurementItem {
+  id: string;
+  plant_name: string;
+  quantity: number;
+  paid_amount?: number;
+  is_done: boolean;
+  priority_order: number;
+  location_link?: string;
+  nursery_name?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  created_at: string;
+}
+
+export interface ProcurementStop {
+  id: string;
+  stopNumber: number;
+  nurseryName: string;
+  locationLink: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceKm?: number;
+  items: ProcurementItem[];
+  isCompleted: boolean;
+}
+
+// ---- Plant Vendor Details ----
+export interface Vendor {
+  id: string;
+  vendor_name: string;
+  plant_names: string;
+  contact_number: string;
+  location_link: string;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+// ---- Client Delivery Destination ----
+export interface ClientDestination {
+  name: string;
+  locationLink: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  projectId?: string;
+}
+

@@ -7,6 +7,8 @@ import {
   SiteAssessment, 
   AssessmentMeasurement, 
   MaintenanceSchedule, 
+  ProcurementItem,
+  Vendor,
   ProjectFinancialSummary, 
   CompanyFinancialSummary, 
   ExpenseCategory, 
@@ -27,6 +29,8 @@ interface ProjectContextType {
   assessments: SiteAssessment[];
   assessmentMeasurements: AssessmentMeasurement[];
   maintenanceSchedules: MaintenanceSchedule[];
+  procurementItems: ProcurementItem[];
+  vendors: Vendor[];
   selectedProject: Project | null;
   loading: boolean;
   
@@ -64,6 +68,19 @@ interface ProjectContextType {
   updateMaintenanceSchedule: (id: string, updates: Partial<MaintenanceSchedule>) => Promise<void>;
   deleteMaintenanceSchedule: (id: string) => Promise<void>;
 
+  // Procurement Actions
+  createProcurementItem: (data: Omit<ProcurementItem, 'id' | 'created_at'>) => Promise<ProcurementItem>;
+  updateProcurementItem: (id: string, updates: Partial<ProcurementItem>) => Promise<void>;
+  deleteProcurementItem: (id: string) => Promise<void>;
+  clearAllProcurementItems: () => Promise<void>;
+  toggleProcurementStatus: (id: string) => Promise<void>;
+  reorderProcurementItems: (orderedIds: string[]) => Promise<void>;
+
+  // Vendor Actions
+  createVendor: (data: Omit<Vendor, 'id' | 'created_at' | 'updated_at'>) => Promise<Vendor>;
+  updateVendor: (id: string, updates: Partial<Vendor>) => Promise<void>;
+  deleteVendor: (id: string) => Promise<void>;
+
   // Financial Helpers
   getProjectFinancials: (projectId: string) => ProjectFinancialSummary;
   getCompanyFinancials: () => CompanyFinancialSummary;
@@ -84,6 +101,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [assessments, setAssessments] = useState<SiteAssessment[]>(() => getLocal<SiteAssessment>(STORAGE_KEYS.ASSESSMENTS));
   const [assessmentMeasurements, setAssessmentMeasurements] = useState<AssessmentMeasurement[]>(() => getLocal<AssessmentMeasurement>(STORAGE_KEYS.MEASUREMENTS));
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>(() => getLocal<MaintenanceSchedule>(STORAGE_KEYS.MAINTENANCE));
+  const [procurementItems, setProcurementItems] = useState<ProcurementItem[]>(() => getLocal<ProcurementItem>(STORAGE_KEYS.PROCUREMENT));
+  const [vendors, setVendors] = useState<Vendor[]>(() => getLocal<Vendor>(STORAGE_KEYS.VENDORS));
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // If local cache already exists, initial loading is false; otherwise true until first fetch finishes
@@ -105,9 +124,11 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         dataService.getAssessments(),
         dataService.getMeasurements(),
         dataService.getMaintenanceSchedules(),
+        dataService.getProcurementItems(),
+        dataService.getVendors(),
       ]);
 
-      const [pRes, eRes, sRes, cpRes, saRes, smRes, msRes] = results;
+      const [pRes, eRes, sRes, cpRes, saRes, smRes, msRes, procRes, vRes] = results;
 
       if (pRes.status === 'fulfilled') setProjects(pRes.value);
       if (eRes.status === 'fulfilled') setExpenses(eRes.value);
@@ -116,6 +137,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (saRes.status === 'fulfilled') setAssessments(saRes.value);
       if (smRes.status === 'fulfilled') setAssessmentMeasurements(smRes.value);
       if (msRes.status === 'fulfilled') setMaintenanceSchedules(msRes.value);
+      if (procRes.status === 'fulfilled') setProcurementItems(procRes.value);
+      if (vRes.status === 'fulfilled') setVendors(vRes.value);
 
       // Keep selected project updated if it exists
       if (selectedProject && pRes.status === 'fulfilled') {
@@ -252,6 +275,85 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setMaintenanceSchedules(prev => prev.filter(m => m.id !== id));
   };
 
+  // ---- Procurement Actions ----
+  const createProcurementItem = async (data: Omit<ProcurementItem, 'id' | 'created_at'>) => {
+    const created = await dataService.createProcurementItem(data);
+    setProcurementItems(prev => [created, ...prev]);
+    return created;
+  };
+
+  const updateProcurementItem = async (id: string, updates: Partial<ProcurementItem>) => {
+    await dataService.updateProcurementItem(id, updates);
+    setProcurementItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+  };
+
+  const deleteProcurementItem = async (id: string) => {
+    await dataService.deleteProcurementItem(id);
+    setProcurementItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const clearAllProcurementItems = async () => {
+    await dataService.clearAllProcurementItems();
+    setProcurementItems([]);
+  };
+
+  const toggleProcurementStatus = async (id: string) => {
+    const item = procurementItems.find(i => i.id === id);
+    if (!item) return;
+    const nextDone = !item.is_done;
+    const updates: Partial<ProcurementItem> = { is_done: nextDone };
+    if (!nextDone) {
+      const maxPending = procurementItems
+        .filter(i => !i.is_done && i.id !== id)
+        .reduce((max, i) => Math.max(max, i.priority_order || 0), 0);
+      updates.priority_order = maxPending + 1;
+    }
+    await updateProcurementItem(id, updates);
+  };
+
+  const reorderProcurementItems = async (orderedIds: string[]) => {
+    // 1. Immediately update React state with new priority_order for instant UI response
+    setProcurementItems(prev => {
+      const updated = prev.map(item => {
+        const idx = orderedIds.indexOf(item.id);
+        if (idx !== -1) {
+          return { ...item, priority_order: idx + 1 };
+        }
+        return item;
+      });
+
+      return updated.sort((a, b) => {
+        const idxA = orderedIds.indexOf(a.id);
+        const idxB = orderedIds.indexOf(b.id);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        const orderA = a.priority_order ?? 9999;
+        const orderB = b.priority_order ?? 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    });
+
+    // 2. Persist order to localStorage and Supabase
+    await dataService.reorderProcurementItems(orderedIds);
+  };
+
+  // ---- Vendor Actions ----
+  const createVendor = async (data: Omit<Vendor, 'id' | 'created_at' | 'updated_at'>) => {
+    const created = await dataService.createVendor(data);
+    setVendors(prev => [created, ...prev]);
+    return created;
+  };
+
+  const updateVendor = async (id: string, updates: Partial<Vendor>) => {
+    await dataService.updateVendor(id, updates);
+    setVendors(prev => prev.map(v => v.id === id ? { ...v, ...updates, updated_at: new Date().toISOString() } : v));
+  };
+
+  const deleteVendor = async (id: string) => {
+    await dataService.deleteVendor(id);
+    setVendors(prev => prev.filter(v => v.id !== id));
+  };
+
   // ---- Financial Computations ----
   const getProjectFinancials = useCallback((projectId: string): ProjectFinancialSummary => {
     const project = projects.find(p => p.id === projectId);
@@ -348,6 +450,8 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         assessments,
         assessmentMeasurements,
         maintenanceSchedules,
+        procurementItems,
+        vendors,
         selectedProject,
         loading,
         setSelectedProject,
@@ -370,6 +474,15 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         createMaintenanceSchedule,
         updateMaintenanceSchedule,
         deleteMaintenanceSchedule,
+        createProcurementItem,
+        updateProcurementItem,
+        deleteProcurementItem,
+        clearAllProcurementItems,
+        toggleProcurementStatus,
+        reorderProcurementItems,
+        createVendor,
+        updateVendor,
+        deleteVendor,
         getProjectFinancials,
         getCompanyFinancials,
         getExpensesByCategory,

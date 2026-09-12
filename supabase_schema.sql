@@ -211,4 +211,59 @@ CREATE POLICY "Allow anon all on maintenance_schedules" ON public.maintenance_sc
 CREATE INDEX IF NOT EXISTS idx_maintenance_date ON public.maintenance_schedules(scheduled_date ASC);
 CREATE INDEX IF NOT EXISTS idx_maintenance_project ON public.maintenance_schedules(project_id);
 
+-- ==============================================================================
+-- 13. PLANT & MATERIAL PROCUREMENT TABLE (SIMPLIFIED)
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.procurement_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    plant_name TEXT NOT NULL,
+    quantity NUMERIC(10, 2) NOT NULL DEFAULT 1,
+    paid_amount NUMERIC(12, 2) DEFAULT 0.00,
+    is_done BOOLEAN DEFAULT FALSE,
+    priority_order INTEGER DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.procurement_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow anon all on procurement_items" ON public.procurement_items;
+CREATE POLICY "Allow anon all on procurement_items" 
+ON public.procurement_items 
+FOR ALL 
+TO anon 
+USING (true) 
+WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_procurement_order ON public.procurement_items(priority_order ASC);
+CREATE INDEX IF NOT EXISTS idx_procurement_done ON public.procurement_items(is_done);
+
+-- ==============================================================================
+-- 14. VENDOR DIRECTORY / SUPPLIERS TABLE
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.vendors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vendor_name TEXT NOT NULL,
+    plant_names TEXT NOT NULL,
+    contact_number TEXT DEFAULT '',
+    location_link TEXT DEFAULT '',
+    notes TEXT DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow anon all on vendors" ON public.vendors;
+CREATE POLICY "Allow anon all on vendors" 
+ON public.vendors 
+FOR ALL 
+TO anon 
+USING (true) 
+WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_vendors_name ON public.vendors(vendor_name);
+CREATE INDEX IF NOT EXISTS idx_vendors_created ON public.vendors(created_at DESC);
+
 

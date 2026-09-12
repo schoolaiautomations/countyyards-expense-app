@@ -6,7 +6,9 @@ import {
   ClientPayment, 
   SiteAssessment, 
   AssessmentMeasurement, 
-  MaintenanceSchedule 
+  MaintenanceSchedule,
+  ProcurementItem,
+  Vendor
 } from '../types';
 
 export const STORAGE_KEYS = {
@@ -17,6 +19,8 @@ export const STORAGE_KEYS = {
   ASSESSMENTS: 'cy_assessments_prod',
   MEASUREMENTS: 'cy_measurements_prod',
   MAINTENANCE: 'cy_maintenance_prod',
+  PROCUREMENT: 'cy_procurement_prod',
+  VENDORS: 'cy_vendors_prod',
   CLEANED_DUMMY: 'cy_cleaned_dummy_v1',
 };
 
@@ -647,6 +651,203 @@ export const dataService = {
       if (error) console.error('Supabase maintenance delete failed:', error.message);
     } catch (e) {
       console.warn('Supabase maintenance delete skipped', e);
+    }
+  },
+
+  // ---- PLANT / MATERIAL PROCUREMENT ----
+  async getProcurementItems(): Promise<ProcurementItem[]> {
+    try {
+      const response = await withTimeout(
+        supabase.from('procurement_items').select('*').order('priority_order', { ascending: true }) as any,
+        5000
+      );
+      const { data, error } = response || {};
+      if (!error && data) {
+        setLocal(STORAGE_KEYS.PROCUREMENT, data as ProcurementItem[]);
+        return data as ProcurementItem[];
+      }
+      if (error) console.warn('Supabase getProcurementItems error:', error.message);
+    } catch {
+      // Fallback
+    }
+    return getLocal<ProcurementItem>(STORAGE_KEYS.PROCUREMENT).sort(
+      (a, b) => (a.priority_order || 0) - (b.priority_order || 0)
+    );
+  },
+
+  async createProcurementItem(item: Omit<ProcurementItem, 'id' | 'created_at'>): Promise<ProcurementItem> {
+    const currentList = getLocal<ProcurementItem>(STORAGE_KEYS.PROCUREMENT);
+    const maxOrder = currentList.length > 0 ? Math.max(...currentList.map(i => i.priority_order || 0)) : 0;
+    
+    const newItem: ProcurementItem = {
+      id: generateUUID(),
+      plant_name: item.plant_name.trim(),
+      quantity: Number(item.quantity) || 1,
+      paid_amount: item.paid_amount ? Number(item.paid_amount) : 0,
+      is_done: Boolean(item.is_done),
+      priority_order: item.priority_order !== undefined && item.priority_order < 9000 ? item.priority_order : maxOrder + 1,
+      location_link: item.location_link || '',
+      nursery_name: item.nursery_name || '',
+      latitude: item.latitude ?? null,
+      longitude: item.longitude ?? null,
+      created_at: new Date().toISOString(),
+    };
+
+    setLocal(STORAGE_KEYS.PROCUREMENT, [newItem, ...currentList]);
+
+    try {
+      const { data, error } = await supabase.from('procurement_items').insert([newItem]).select().single();
+      if (!error && data) {
+        const updatedList = [data as ProcurementItem, ...currentList.filter(i => i.id !== data.id)];
+        setLocal(STORAGE_KEYS.PROCUREMENT, updatedList);
+        return data as ProcurementItem;
+      }
+      if (error) console.error('Supabase procurement insert failed:', error.message);
+    } catch (e) {
+      console.error('Supabase procurement sync exception:', e);
+    }
+
+    return newItem;
+  },
+
+  async updateProcurementItem(id: string, updates: Partial<ProcurementItem>): Promise<void> {
+    const list = getLocal<ProcurementItem>(STORAGE_KEYS.PROCUREMENT);
+    const updated = list.map(i => i.id === id ? { ...i, ...updates } : i);
+    setLocal(STORAGE_KEYS.PROCUREMENT, updated);
+
+    try {
+      const { error } = await supabase.from('procurement_items').update(updates).eq('id', id);
+      if (error) console.error('Supabase procurement update failed:', error.message);
+    } catch (e) {
+      console.warn('Supabase procurement update skipped', e);
+    }
+  },
+
+  async deleteProcurementItem(id: string): Promise<void> {
+    const list = getLocal<ProcurementItem>(STORAGE_KEYS.PROCUREMENT).filter(i => i.id !== id);
+    setLocal(STORAGE_KEYS.PROCUREMENT, list);
+
+    try {
+      const { error } = await supabase.from('procurement_items').delete().eq('id', id);
+      if (error) console.error('Supabase procurement delete failed:', error.message);
+    } catch (e) {
+      console.warn('Supabase procurement delete skipped', e);
+    }
+  },
+
+  async clearAllProcurementItems(): Promise<void> {
+    setLocal(STORAGE_KEYS.PROCUREMENT, []);
+
+    try {
+      const { error } = await supabase.from('procurement_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) console.error('Supabase clearAllProcurementItems failed:', error.message);
+    } catch (e) {
+      console.warn('Supabase clear all procurement skipped', e);
+    }
+  },
+
+  async reorderProcurementItems(orderedIds: string[]): Promise<void> {
+    const list = getLocal<ProcurementItem>(STORAGE_KEYS.PROCUREMENT);
+    const updated = list.map(item => {
+      const idx = orderedIds.indexOf(item.id);
+      if (idx !== -1) {
+        return { ...item, priority_order: idx + 1 };
+      }
+      return item;
+    });
+    setLocal(STORAGE_KEYS.PROCUREMENT, updated);
+
+    try {
+      await Promise.all(
+        orderedIds.map((id, index) =>
+          supabase.from('procurement_items').update({ priority_order: index + 1 }).eq('id', id)
+        )
+      );
+    } catch (e) {
+      console.warn('Supabase procurement reorder sync skipped', e);
+    }
+  },
+
+  // ---- VENDOR DIRECTORY ----
+  async getVendors(): Promise<Vendor[]> {
+    try {
+      const response = await withTimeout(
+        supabase.from('vendors').select('*').order('created_at', { ascending: false }) as any,
+        5000
+      );
+      const { data, error } = response || {};
+      if (!error && data) {
+        setLocal(STORAGE_KEYS.VENDORS, data as Vendor[]);
+        return data as Vendor[];
+      }
+      if (error) console.warn('Supabase getVendors error:', error.message);
+    } catch {
+      // Fallback
+    }
+    return getLocal<Vendor>(STORAGE_KEYS.VENDORS).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  },
+
+  async createVendor(vendor: Omit<Vendor, 'id' | 'created_at' | 'updated_at'>): Promise<Vendor> {
+    const newItem: Vendor = {
+      ...vendor,
+      id: generateUUID(),
+      vendor_name: vendor.vendor_name.trim(),
+      plant_names: vendor.plant_names.trim(),
+      contact_number: (vendor.contact_number || '').trim(),
+      location_link: (vendor.location_link || '').trim(),
+      notes: (vendor.notes || '').trim(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const currentList = getLocal<Vendor>(STORAGE_KEYS.VENDORS);
+    setLocal(STORAGE_KEYS.VENDORS, [newItem, ...currentList]);
+
+    try {
+      const { data, error } = await supabase.from('vendors').insert([newItem]).select().single();
+      if (!error && data) {
+        const updatedList = [data as Vendor, ...currentList.filter(v => v.id !== data.id)];
+        setLocal(STORAGE_KEYS.VENDORS, updatedList);
+        return data as Vendor;
+      }
+      if (error) console.error('Supabase vendor insert failed:', error.message);
+    } catch (e) {
+      console.error('Supabase vendor sync exception:', e);
+    }
+
+    return newItem;
+  },
+
+  async updateVendor(id: string, updates: Partial<Vendor>): Promise<void> {
+    const cleanUpdates = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+
+    const list = getLocal<Vendor>(STORAGE_KEYS.VENDORS).map(v =>
+      v.id === id ? { ...v, ...cleanUpdates } : v
+    );
+    setLocal(STORAGE_KEYS.VENDORS, list);
+
+    try {
+      const { error } = await supabase.from('vendors').update(cleanUpdates).eq('id', id);
+      if (error) console.error('Supabase vendor update failed:', error.message);
+    } catch (e) {
+      console.warn('Supabase vendor update skipped', e);
+    }
+  },
+
+  async deleteVendor(id: string): Promise<void> {
+    const list = getLocal<Vendor>(STORAGE_KEYS.VENDORS).filter(v => v.id !== id);
+    setLocal(STORAGE_KEYS.VENDORS, list);
+
+    try {
+      const { error } = await supabase.from('vendors').delete().eq('id', id);
+      if (error) console.error('Supabase vendor delete failed:', error.message);
+    } catch (e) {
+      console.warn('Supabase vendor delete skipped', e);
     }
   },
 };

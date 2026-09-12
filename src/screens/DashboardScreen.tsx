@@ -2,12 +2,14 @@ import React from 'react';
 import { 
   FolderKanban, 
   Wallet, 
-  ClipboardCheck,
-  CalendarClock
+  ClipboardCheck, 
+  CalendarClock, 
+  Sprout,
+  Store
 } from 'lucide-react';
 
 interface DashboardScreenProps {
-  onSelectModule: (module: 'projects' | 'finance' | 'assessment' | 'maintenance') => void;
+  onSelectModule: (module: 'projects' | 'finance' | 'assessment' | 'maintenance' | 'procurement' | 'vendors') => void;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSelectModule }) => {
@@ -23,7 +25,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSelectModule
         </p>
       </div>
 
-      {/* 2x2 Square Grid Cards */}
+      {/* Square Grid Cards */}
       <div className="grid grid-cols-2 gap-2.5">
         {/* CARD 1: Client Site Assessment */}
         <div
@@ -98,6 +100,44 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onSelectModule
           </h3>
           <p className="text-[10px] text-stone-500 font-normal mt-0.5 leading-snug">
             Calendar & schedule for upcoming visits
+          </p>
+        </div>
+
+        {/* CARD 5: Plant / Material Procurement (Square Card) */}
+        <div
+          onClick={() => onSelectModule('procurement')}
+          className="bg-white rounded-xl p-3.5 shadow-xs hover:shadow-soft border border-stone-200/80 hover:border-[#78350f] active:scale-[0.98] cursor-pointer transition-all flex flex-col items-center justify-center text-center aspect-square"
+        >
+          <div className="w-12 h-12 rounded-xl bg-[#78350f] text-white flex items-center justify-center flex-shrink-0 shadow-xs mb-2.5">
+            <Sprout className="w-5 h-5" />
+          </div>
+          <span className="text-[9px] font-semibold text-[#78350f] uppercase tracking-wide block leading-tight mb-0.5">
+            Card 5
+          </span>
+          <h3 className="text-[13px] font-bold text-stone-800 leading-tight">
+            Plant / Material Procurement
+          </h3>
+          <p className="text-[10px] text-stone-500 font-normal mt-0.5 leading-snug">
+            Kadiyam checklist & sequence ordering
+          </p>
+        </div>
+
+        {/* CARD 6: Vendor Directory (Square Card) */}
+        <div
+          onClick={() => onSelectModule('vendors')}
+          className="bg-white rounded-xl p-3.5 shadow-xs hover:shadow-soft border border-stone-200/80 hover:border-indigo-600 active:scale-[0.98] cursor-pointer transition-all flex flex-col items-center justify-center text-center aspect-square"
+        >
+          <div className="w-12 h-12 rounded-xl bg-indigo-700 text-white flex items-center justify-center flex-shrink-0 shadow-xs mb-2.5">
+            <Store className="w-5 h-5" />
+          </div>
+          <span className="text-[9px] font-semibold text-indigo-700 uppercase tracking-wide block leading-tight mb-0.5">
+            Card 6
+          </span>
+          <h3 className="text-[13px] font-bold text-stone-800 leading-tight">
+            Vendor Directory
+          </h3>
+          <p className="text-[10px] text-stone-500 font-normal mt-0.5 leading-snug">
+            Nurseries, plants, location & contact
           </p>
         </div>
       </div>

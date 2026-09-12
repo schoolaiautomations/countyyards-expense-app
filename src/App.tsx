@@ -10,6 +10,8 @@ import { ProjectDetailScreen } from './screens/ProjectDetailScreen';
 import { FinanceTrackerScreen } from './screens/FinanceTrackerScreen';
 import { SiteAssessmentScreen } from './screens/SiteAssessmentScreen';
 import { MaintenanceScreen } from './screens/MaintenanceScreen';
+import { ProcurementScreen } from './screens/ProcurementScreen';
+import { VendorsScreen } from './screens/VendorsScreen';
 
 export const App: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -39,8 +41,14 @@ export const App: React.FC = () => {
         {selectedProject ? (
           <ProjectDetailScreen />
         ) : activeModule === 'assessment' ? (
-          /* Card 3: Client Site Assessment */
+          /* Card 1: Client Site Assessment */
           <SiteAssessmentScreen onBack={() => setActiveModule('home')} />
+        ) : activeModule === 'procurement' ? (
+          /* Card 5: Plant / Material Procurement */
+          <ProcurementScreen onBack={() => setActiveModule('home')} />
+        ) : activeModule === 'vendors' ? (
+          /* Card 6: Vendor Directory */
+          <VendorsScreen onBack={() => setActiveModule('home')} />
         ) : activeModule === 'maintenance' ? (
           /* Card 4: Inspection / Maintenance */
           <MaintenanceScreen onBack={() => setActiveModule('home')} />
