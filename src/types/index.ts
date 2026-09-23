@@ -111,12 +111,15 @@ export interface ProjectFinancialSummary {
 }
 
 export interface CompanyFinancialSummary {
-  company_total_balance: number; // Total client payments - All deductions across all projects
+  company_total_balance: number; // Total received - All deductions
   total_quoted: number;
-  total_collected: number;
-  total_expenses: number;
-  total_salaries: number;
-  total_deductions: number;
+  total_collected: number; // Client payments from projects
+  total_outside_income: number; // Non-project outside funds added
+  total_received: number; // total_collected + total_outside_income
+  total_expenses: number; // Project expenses
+  total_salaries: number; // Project salaries
+  total_general_expenses: number; // Bike maintenance, fuel & non-project costs
+  total_deductions: number; // total_expenses + total_salaries + total_general_expenses
   total_pending_receivables: number;
   net_profit_margin: number;
   active_projects_count: number;
@@ -226,5 +229,42 @@ export interface ClientDestination {
   latitude?: number | null;
   longitude?: number | null;
   projectId?: string;
+}
+
+// ---- Company General / Non-Project Transactions (Maintenance & Outside Funds) ----
+export type CompanyTransactionType = 'Expense' | 'Income';
+
+export const COMPANY_EXPENSE_CATEGORIES = [
+  'Bike / Vehicle Maintenance',
+  'Fuel / Transportation',
+  'Tools & Equipment Repair',
+  'Office & Yard Upkeep',
+  'Food & Refreshments',
+  'Miscellaneous / Other Cost'
+] as const;
+
+export type CompanyExpenseCategory = typeof COMPANY_EXPENSE_CATEGORIES[number];
+
+export const COMPANY_INCOME_CATEGORIES = [
+  'Outside Capital / Funds',
+  'Owner Cash Addition',
+  'Equipment / Scrap Sale',
+  'Miscellaneous Income',
+  'Other Inflow'
+] as const;
+
+export type CompanyIncomeCategory = typeof COMPANY_INCOME_CATEGORIES[number];
+
+export interface CompanyTransaction {
+  id: string;
+  type: CompanyTransactionType; // 'Expense' (Deduct) | 'Income' (Add)
+  title: string;
+  category: string;
+  amount: number;
+  date: string;
+  payment_method?: string;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
 }
 

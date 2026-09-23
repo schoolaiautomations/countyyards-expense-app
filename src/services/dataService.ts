@@ -8,7 +8,8 @@ import {
   AssessmentMeasurement, 
   MaintenanceSchedule,
   ProcurementItem,
-  Vendor
+  Vendor,
+  CompanyTransaction
 } from '../types';
 
 export const STORAGE_KEYS = {
@@ -21,6 +22,7 @@ export const STORAGE_KEYS = {
   MAINTENANCE: 'cy_maintenance_prod',
   PROCUREMENT: 'cy_procurement_prod',
   VENDORS: 'cy_vendors_prod',
+  COMPANY_TRANSACTIONS: 'cy_company_transactions_prod',
   CLEANED_DUMMY: 'cy_cleaned_dummy_v1',
 };
 
@@ -848,6 +850,90 @@ export const dataService = {
       if (error) console.error('Supabase vendor delete failed:', error.message);
     } catch (e) {
       console.warn('Supabase vendor delete skipped', e);
+    }
+  },
+
+  // ---- COMPANY GENERAL TRANSACTIONS (MAINTENANCE & OUTSIDE FUNDS) ----
+  async getCompanyTransactions(): Promise<CompanyTransaction[]> {
+    try {
+      const response = await withTimeout(
+        supabase.from('company_transactions').select('*').order('date', { ascending: false }) as any,
+        5000
+      );
+      const { data, error } = response || {};
+      if (!error && data) {
+        setLocal(STORAGE_KEYS.COMPANY_TRANSACTIONS, data as CompanyTransaction[]);
+        return data as CompanyTransaction[];
+      }
+      if (error) console.warn('Supabase getCompanyTransactions error:', error.message);
+    } catch {
+      // Fallback
+    }
+    return getLocal<CompanyTransaction>(STORAGE_KEYS.COMPANY_TRANSACTIONS).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  },
+
+  async createCompanyTransaction(txn: Omit<CompanyTransaction, 'id' | 'created_at' | 'updated_at'>): Promise<CompanyTransaction> {
+    const newItem: CompanyTransaction = {
+      ...txn,
+      id: generateUUID(),
+      title: txn.title.trim(),
+      category: txn.category || 'Miscellaneous / Other Cost',
+      amount: Number(txn.amount) || 0,
+      date: txn.date || new Date().toISOString().split('T')[0],
+      payment_method: (txn.payment_method || 'Cash').trim(),
+      notes: (txn.notes || '').trim(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const list = getLocal<CompanyTransaction>(STORAGE_KEYS.COMPANY_TRANSACTIONS);
+    setLocal(STORAGE_KEYS.COMPANY_TRANSACTIONS, [newItem, ...list]);
+
+    try {
+      const { data, error } = await supabase.from('company_transactions').insert([newItem]).select().single();
+      if (!error && data) {
+        const updatedList = [data as CompanyTransaction, ...list.filter(t => t.id !== data.id)];
+        setLocal(STORAGE_KEYS.COMPANY_TRANSACTIONS, updatedList);
+        return data as CompanyTransaction;
+      }
+      if (error) console.error('Supabase company transaction insert failed:', error.message);
+    } catch (e) {
+      console.error('Supabase company transaction sync exception:', e);
+    }
+
+    return newItem;
+  },
+
+  async updateCompanyTransaction(id: string, updates: Partial<CompanyTransaction>): Promise<void> {
+    const cleanUpdates = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+
+    const list = getLocal<CompanyTransaction>(STORAGE_KEYS.COMPANY_TRANSACTIONS).map(t =>
+      t.id === id ? { ...t, ...cleanUpdates } : t
+    );
+    setLocal(STORAGE_KEYS.COMPANY_TRANSACTIONS, list);
+
+    try {
+      const { error } = await supabase.from('company_transactions').update(cleanUpdates).eq('id', id);
+      if (error) console.error('Supabase company transaction update failed:', error.message);
+    } catch (e) {
+      console.warn('Supabase company transaction update skipped', e);
+    }
+  },
+
+  async deleteCompanyTransaction(id: string): Promise<void> {
+    const list = getLocal<CompanyTransaction>(STORAGE_KEYS.COMPANY_TRANSACTIONS).filter(t => t.id !== id);
+    setLocal(STORAGE_KEYS.COMPANY_TRANSACTIONS, list);
+
+    try {
+      const { error } = await supabase.from('company_transactions').delete().eq('id', id);
+      if (error) console.error('Supabase company transaction delete failed:', error.message);
+    } catch (e) {
+      console.warn('Supabase company transaction delete skipped', e);
     }
   },
 };

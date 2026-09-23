@@ -9,6 +9,7 @@ import {
   MaintenanceSchedule, 
   ProcurementItem,
   Vendor,
+  CompanyTransaction,
   ProjectFinancialSummary, 
   CompanyFinancialSummary, 
   ExpenseCategory, 
@@ -31,6 +32,7 @@ interface ProjectContextType {
   maintenanceSchedules: MaintenanceSchedule[];
   procurementItems: ProcurementItem[];
   vendors: Vendor[];
+  companyTransactions: CompanyTransaction[];
   selectedProject: Project | null;
   loading: boolean;
   
@@ -81,6 +83,11 @@ interface ProjectContextType {
   updateVendor: (id: string, updates: Partial<Vendor>) => Promise<void>;
   deleteVendor: (id: string) => Promise<void>;
 
+  // Company General Transactions (Maintenance & Outside Funds)
+  addCompanyTransaction: (data: Omit<CompanyTransaction, 'id' | 'created_at' | 'updated_at'>) => Promise<CompanyTransaction>;
+  updateCompanyTransaction: (id: string, updates: Partial<CompanyTransaction>) => Promise<void>;
+  deleteCompanyTransaction: (id: string) => Promise<void>;
+
   // Financial Helpers
   getProjectFinancials: (projectId: string) => ProjectFinancialSummary;
   getCompanyFinancials: () => CompanyFinancialSummary;
@@ -103,6 +110,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>(() => getLocal<MaintenanceSchedule>(STORAGE_KEYS.MAINTENANCE));
   const [procurementItems, setProcurementItems] = useState<ProcurementItem[]>(() => getLocal<ProcurementItem>(STORAGE_KEYS.PROCUREMENT));
   const [vendors, setVendors] = useState<Vendor[]>(() => getLocal<Vendor>(STORAGE_KEYS.VENDORS));
+  const [companyTransactions, setCompanyTransactions] = useState<CompanyTransaction[]>(() => getLocal<CompanyTransaction>(STORAGE_KEYS.COMPANY_TRANSACTIONS));
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // If local cache already exists, initial loading is false; otherwise true until first fetch finishes
@@ -126,9 +134,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         dataService.getMaintenanceSchedules(),
         dataService.getProcurementItems(),
         dataService.getVendors(),
+        dataService.getCompanyTransactions(),
       ]);
 
-      const [pRes, eRes, sRes, cpRes, saRes, smRes, msRes, procRes, vRes] = results;
+      const [pRes, eRes, sRes, cpRes, saRes, smRes, msRes, procRes, vRes, ctRes] = results;
 
       if (pRes.status === 'fulfilled') setProjects(pRes.value);
       if (eRes.status === 'fulfilled') setExpenses(eRes.value);
@@ -139,6 +148,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (msRes.status === 'fulfilled') setMaintenanceSchedules(msRes.value);
       if (procRes.status === 'fulfilled') setProcurementItems(procRes.value);
       if (vRes.status === 'fulfilled') setVendors(vRes.value);
+      if (ctRes.status === 'fulfilled') setCompanyTransactions(ctRes.value);
 
       // Keep selected project updated if it exists
       if (selectedProject && pRes.status === 'fulfilled') {
@@ -354,6 +364,23 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setVendors(prev => prev.filter(v => v.id !== id));
   };
 
+  // ---- Company General Transactions (Maintenance & Outside Funds) ----
+  const addCompanyTransaction = async (data: Omit<CompanyTransaction, 'id' | 'created_at' | 'updated_at'>) => {
+    const created = await dataService.createCompanyTransaction(data);
+    setCompanyTransactions(prev => [created, ...prev]);
+    return created;
+  };
+
+  const updateCompanyTransaction = async (id: string, updates: Partial<CompanyTransaction>) => {
+    await dataService.updateCompanyTransaction(id, updates);
+    setCompanyTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t));
+  };
+
+  const deleteCompanyTransaction = async (id: string) => {
+    await dataService.deleteCompanyTransaction(id);
+    setCompanyTransactions(prev => prev.filter(t => t.id !== id));
+  };
+
   // ---- Financial Computations ----
   const getProjectFinancials = useCallback((projectId: string): ProjectFinancialSummary => {
     const project = projects.find(p => p.id === projectId);
@@ -395,12 +422,22 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const total_expenses = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const total_salaries = salaries.reduce((sum, s) => sum + Number(s.amount || 0), 0);
 
-    const total_deductions = total_expenses + total_salaries;
-    const company_total_balance = total_collected - total_deductions;
+    // Non-project general transactions
+    const total_outside_income = companyTransactions
+      .filter(t => t.type === 'Income')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+    const total_general_expenses = companyTransactions
+      .filter(t => t.type === 'Expense')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+    const total_received = total_collected + total_outside_income;
+    const total_deductions = total_expenses + total_salaries + total_general_expenses;
+    const company_total_balance = total_received - total_deductions;
     const total_pending_receivables = Math.max(0, total_quoted - total_collected);
     
-    const net_profit_margin = total_collected > 0 
-      ? Math.round((company_total_balance / total_collected) * 100) 
+    const net_profit_margin = total_received > 0 
+      ? Math.round((company_total_balance / total_received) * 100) 
       : 0;
 
     const active_projects_count = projects.filter(p => p.status === 'Active').length;
@@ -410,15 +447,18 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       company_total_balance,
       total_quoted,
       total_collected,
+      total_outside_income,
+      total_received,
       total_expenses,
       total_salaries,
+      total_general_expenses,
       total_deductions,
       total_pending_receivables,
       net_profit_margin,
       active_projects_count,
       completed_projects_count,
     };
-  }, [projects, clientPayments, expenses, salaries]);
+  }, [projects, clientPayments, expenses, salaries, companyTransactions]);
 
   const getExpensesByCategory = useCallback((projectId?: string) => {
     const relevantExpenses = projectId 
@@ -483,6 +523,10 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         createVendor,
         updateVendor,
         deleteVendor,
+        companyTransactions,
+        addCompanyTransaction,
+        updateCompanyTransaction,
+        deleteCompanyTransaction,
         getProjectFinancials,
         getCompanyFinancials,
         getExpensesByCategory,
